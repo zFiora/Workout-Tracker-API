@@ -129,3 +129,6 @@ C:\Users\HP\Desktop\projects\.NET-PROJECTS\WorkoutTrackerAPI\obj\Debug\net10.0\r
 C:\Users\HP\Desktop\projects\.NET-PROJECTS\WorkoutTrackerAPI\obj\Debug\net10.0\WorkoutTrackerAPI.pdb
 C:\Users\HP\Desktop\projects\.NET-PROJECTS\WorkoutTrackerAPI\obj\Debug\net10.0\WorkoutTrackerAPI.genruntimeconfig.cache
 C:\Users\HP\Desktop\projects\.NET-PROJECTS\WorkoutTrackerAPI\obj\Debug\net10.0\ref\WorkoutTrackerAPI.dll
+C:\Users\HP\Desktop\projects\.NET-PROJECTS\WorkoutTrackerAPI\bin\Debug\net10.0\Swashbuckle.AspNetCore.Swagger.dll
+C:\Users\HP\Desktop\projects\.NET-PROJECTS\WorkoutTrackerAPI\bin\Debug\net10.0\Swashbuckle.AspNetCore.SwaggerGen.dll
+C:\Users\HP\Desktop\projects\.NET-PROJECTS\WorkoutTrackerAPI\bin\Debug\net10.0\Swashbuckle.AspNetCore.SwaggerUI.dll
