@@ -14,29 +14,42 @@ public class MeasurementsController(AppDbContext db) : ControllerBase
 {
     private Guid Me => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
+    // GET /api/measurements?from=2025-01-01
+    [HttpGet]
+    public async Task<IActionResult> List([FromQuery] DateTime? from)
+    {
+        var q = db.Measurements.Where(m => m.UserId == Me);
+        if (from.HasValue)
+            q = q.Where(m => m.Date >= from.Value.ToUniversalTime());
+
+        var results = await q.OrderBy(m => m.Date).ToListAsync();
+
+        return Ok(results.Select(m => new
+        {
+            id       = m.Id.ToString(),
+            date     = m.Date.ToString("o"),
+            weightKg = m.WeightKg,
+        }));
+    }
+
     // POST /api/measurements
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateMeasurementRequest req)
     {
         var m = new Measurement
         {
-            UserId = Me,
-            Date = req.Date.ToUniversalTime(),
+            UserId   = Me,
+            Date     = DateTime.Parse(req.Date).ToUniversalTime(),
             WeightKg = req.WeightKg,
         };
         db.Measurements.Add(m);
         await db.SaveChangesAsync();
-        return Created($"/api/measurements/{m.Id}", new { m.Id, m.Date, m.WeightKg });
-    }
-
-    // GET /api/measurements?from=2025-01-01
-    [HttpGet]
-    public async Task<IActionResult> List([FromQuery] DateTime? from)
-    {
-        var q = db.Measurements.Where(m => m.UserId == Me);
-        if (from.HasValue) q = q.Where(m => m.Date >= from.Value.ToUniversalTime());
-        var results = await q.OrderBy(m => m.Date).ToListAsync();
-        return Ok(results.Select(m => new { m.Id, m.Date, m.WeightKg }));
+        return Created($"/api/measurements/{m.Id}", new
+        {
+            id       = m.Id.ToString(),
+            date     = m.Date.ToString("o"),
+            weightKg = m.WeightKg,
+        });
     }
 
     // DELETE /api/measurements/{id}
@@ -52,4 +65,4 @@ public class MeasurementsController(AppDbContext db) : ControllerBase
     }
 }
 
-public record CreateMeasurementRequest(DateTime Date, double WeightKg);
+public record CreateMeasurementRequest(string Date, double WeightKg);

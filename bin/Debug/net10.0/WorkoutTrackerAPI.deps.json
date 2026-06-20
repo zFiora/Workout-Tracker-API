@@ -9,6 +9,7 @@
       "WorkoutTrackerAPI/1.0.0": {
         "dependencies": {
           "BCrypt.Net-Next": "4.2.0",
+          "CloudinaryDotNet": "1.29.2",
           "Microsoft.AspNetCore.Authentication.JwtBearer": "10.0.9",
           "Microsoft.AspNetCore.OpenApi": "10.0.8",
           "Microsoft.EntityFrameworkCore": "10.0.9",
@@ -25,6 +26,17 @@
           "lib/net10.0/BCrypt-Net-Next.dll": {
             "assemblyVersion": "4.2.0.0",
             "fileVersion": "4.2.0.0"
+          }
+        }
+      },
+      "CloudinaryDotNet/1.29.2": {
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.3"
+        },
+        "runtime": {
+          "lib/netstandard2.0/CloudinaryDotNet.dll": {
+            "assemblyVersion": "1.29.2.0",
+            "fileVersion": "1.29.2.0"
           }
         }
       },
@@ -646,6 +658,13 @@
       "sha512": "sha512-gwLD2KfCuwQesP17aVh4h6lpiMPEVt5Lbpndo0ej903hNUUTtyxt3ARdDjmuydBRTAUICc7OVKVbaOvc6SQYXA==",
       "path": "bcrypt.net-next/4.2.0",
       "hashPath": "bcrypt.net-next.4.2.0.nupkg.sha512"
+    },
+    "CloudinaryDotNet/1.29.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-4vrrx4N960MShjpKlsiRdl8eIHeT2UBn2X69d7b7C34M84lyoZT/ig4CkVCCb8fx5X95oaLE3wNv4tGJHHGnSA==",
+      "path": "cloudinarydotnet/1.29.2",
+      "hashPath": "cloudinarydotnet.1.29.2.nupkg.sha512"
     },
     "Humanizer.Core/2.14.1": {
       "type": "package",

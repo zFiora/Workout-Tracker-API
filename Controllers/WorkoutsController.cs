@@ -22,7 +22,7 @@ public class WorkoutsController(AppDbContext db) : ControllerBase
         var exists = await db.WorkoutEntries.AnyAsync(w =>
             w.UserId == Me &&
             w.TemplateId == req.TemplateId &&
-            w.StartedAt == req.StartedAt.ToUniversalTime());
+            w.StartedAt == DateTime.Parse(req.StartedAt).ToUniversalTime());
 
         if (exists) return Ok(new { message = "Already synced." });
 
@@ -32,8 +32,8 @@ public class WorkoutsController(AppDbContext db) : ControllerBase
             TemplateId   = req.TemplateId,
             TemplateName = req.TemplateName,
             TemplateIcon = req.TemplateIcon,
-            StartedAt    = req.StartedAt.ToUniversalTime(),
-            EndedAt      = req.EndedAt.ToUniversalTime(),
+            StartedAt    = DateTime.Parse(req.StartedAt).ToUniversalTime(),
+            EndedAt      = DateTime.Parse(req.EndedAt).ToUniversalTime(),
             DurationMs   = req.DurationMs,
             Logs         = JsonDocument.Parse(JsonSerializer.Serialize(req.Logs)),
         };
@@ -45,7 +45,9 @@ public class WorkoutsController(AppDbContext db) : ControllerBase
 
     // GET /api/workouts?page=1&perPage=30
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] int page = 1, [FromQuery] int perPage = 30)
+    public async Task<IActionResult> List(
+        [FromQuery] int page = 1,
+        [FromQuery] int perPage = 30)
     {
         var skip    = (page - 1) * perPage;
         var entries = await db.WorkoutEntries
@@ -59,8 +61,10 @@ public class WorkoutsController(AppDbContext db) : ControllerBase
 
         return Ok(new
         {
-            page, perPage, totalItems = total,
-            items = entries.Select(WorkoutDto.From)
+            page,
+            perPage,
+            totalItems = total,
+            items      = entries.Select(ToDto),
         });
     }
 
@@ -70,7 +74,7 @@ public class WorkoutsController(AppDbContext db) : ControllerBase
     {
         var entry = await db.WorkoutEntries
             .FirstOrDefaultAsync(w => w.Id == id && w.UserId == Me);
-        return entry is null ? NotFound() : Ok(WorkoutDto.From(entry));
+        return entry is null ? NotFound() : Ok(ToDto(entry));
     }
 
     // DELETE /api/workouts/{id}
@@ -84,19 +88,33 @@ public class WorkoutsController(AppDbContext db) : ControllerBase
         await db.SaveChangesAsync();
         return NoContent();
     }
+
+    private static WorkoutDto ToDto(WorkoutEntry w) => new(
+        w.Id.ToString(),
+        w.TemplateId,
+        w.TemplateName,
+        w.TemplateIcon,
+        w.StartedAt.ToString("o"),
+        w.EndedAt.ToString("o"),
+        w.DurationMs,
+        w.Logs.RootElement.Clone());
 }
 
 public record CreateWorkoutRequest(
-    string TemplateId, string TemplateName, string TemplateIcon,
-    DateTime StartedAt, DateTime EndedAt, long DurationMs,
+    string TemplateId,
+    string TemplateName,
+    string TemplateIcon,
+    string StartedAt,
+    string EndedAt,
+    long DurationMs,
     List<JsonElement> Logs);
 
 public record WorkoutDto(
-    Guid Id, string TemplateId, string TemplateName, string TemplateIcon,
-    DateTime StartedAt, DateTime EndedAt, long DurationMs, JsonElement Logs)
-{
-    public static WorkoutDto From(WorkoutEntry w) => new(
-        w.Id, w.TemplateId, w.TemplateName, w.TemplateIcon,
-        w.StartedAt, w.EndedAt, w.DurationMs,
-        w.Logs.RootElement.Clone());
-}
+    string Id,
+    string TemplateId,
+    string TemplateName,
+    string TemplateIcon,
+    string StartedAt,
+    string EndedAt,
+    long DurationMs,
+    JsonElement Logs);

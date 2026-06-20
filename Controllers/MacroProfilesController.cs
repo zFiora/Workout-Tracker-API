@@ -18,32 +18,46 @@ public class MacroProfilesController(AppDbContext db) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> Get()
     {
-        var p = await db.MacroProfiles.FirstOrDefaultAsync(m => m.UserId == Me);
-        return p is null ? NotFound() : Ok(MacroDto.From(p));
+        var p = await db.MacroProfiles
+            .FirstOrDefaultAsync(m => m.UserId == Me);
+        return p is null ? NotFound() : Ok(ToDto(p));
     }
 
-    // PUT /api/macro-profile
+    // PUT /api/macro-profile — upsert
     [HttpPut]
     public async Task<IActionResult> Upsert([FromBody] MacroRequest req)
     {
-        var p = await db.MacroProfiles.FirstOrDefaultAsync(m => m.UserId == Me);
+        var p = await db.MacroProfiles
+            .FirstOrDefaultAsync(m => m.UserId == Me);
+
         if (p is null)
         {
             p = new MacroProfile { UserId = Me };
             db.MacroProfiles.Add(p);
         }
-        p.IsMale = req.IsMale;
-        p.Age = req.Age;
+
+        p.IsMale         = req.IsMale;
+        p.Age            = req.Age;
         p.ActivityFactor = req.ActivityFactor;
-        p.UpdatedAt = DateTime.UtcNow;
+        p.UpdatedAt      = DateTime.UtcNow;
+
         await db.SaveChangesAsync();
-        return Ok(MacroDto.From(p));
+        return Ok(ToDto(p));
     }
+
+    private static MacroDto ToDto(MacroProfile p) => new(
+        p.Id.ToString(),
+        p.IsMale,
+        p.Age,
+        p.ActivityFactor,
+        p.UpdatedAt.ToString("o"));
 }
 
 public record MacroRequest(bool IsMale, int Age, double ActivityFactor);
-public record MacroDto(Guid Id, bool IsMale, int Age, double ActivityFactor, DateTime UpdatedAt)
-{
-    public static MacroDto From(MacroProfile p) =>
-        new(p.Id, p.IsMale, p.Age, p.ActivityFactor, p.UpdatedAt);
-}
+
+public record MacroDto(
+    string Id,
+    bool IsMale,
+    int Age,
+    double ActivityFactor,
+    string UpdatedAt);

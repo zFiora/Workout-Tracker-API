@@ -9,6 +9,7 @@ public class Friendship
     public Guid AddresseeId { get; set; }
     public FriendshipStatus Status { get; set; } = FriendshipStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? UpdatedAt { get; set; }
 
     public User Requester { get; set; } = null!;
     public User Addressee { get; set; } = null!;

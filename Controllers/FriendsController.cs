@@ -14,60 +14,22 @@ public class FriendsController(AppDbContext db) : ControllerBase
 {
     private Guid Me => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-    // POST /api/friends/request
-    [HttpPost("request")]
-    public async Task<IActionResult> SendRequest([FromBody] FriendRequestBody req)
-    {
-        if (req.AddresseeId == Me)
-            return BadRequest(new { message = "Cannot friend yourself." });
-
-        var alreadyExists = await db.Friendships.AnyAsync(f =>
-            (f.RequesterId == Me && f.AddresseeId == req.AddresseeId) ||
-            (f.RequesterId == req.AddresseeId && f.AddresseeId == Me));
-
-        if (alreadyExists)
-            return Conflict(new { message = "Friend request already exists." });
-
-        var friendship = new Friendship
-        {
-            RequesterId = Me,
-            AddresseeId = req.AddresseeId,
-            Status      = FriendshipStatus.Pending,
-        };
-        db.Friendships.Add(friendship);
-        await db.SaveChangesAsync();
-        return Created($"/api/friends/{friendship.Id}", new { id = friendship.Id });
-    }
-
-    // PATCH /api/friends/{id}/respond
-    [HttpPatch("{id:guid}/respond")]
-    public async Task<IActionResult> Respond(Guid id, [FromBody] RespondBody req)
-    {
-        var friendship = await db.Friendships
-            .FirstOrDefaultAsync(f => f.Id == id && f.AddresseeId == Me);
-        if (friendship is null) return NotFound();
-
-        friendship.Status = req.Accept ? FriendshipStatus.Accepted : FriendshipStatus.Declined;
-        await db.SaveChangesAsync();
-        return Ok(new { status = friendship.Status.ToString().ToLower() });
-    }
-
     // GET /api/friends
     [HttpGet]
     public async Task<IActionResult> List()
     {
+        var uid = Me;
         var friends = await db.Friendships
             .Include(f => f.Requester)
             .Include(f => f.Addressee)
-            .Where(f =>
-                (f.RequesterId == Me || f.AddresseeId == Me) &&
-                f.Status == FriendshipStatus.Accepted)
+            .Where(f => f.Status == FriendshipStatus.Accepted &&
+                        (f.RequesterId == uid || f.AddresseeId == uid))
             .ToListAsync();
 
         return Ok(friends.Select(f =>
         {
-            var other = f.RequesterId == Me ? f.Addressee : f.Requester;
-            return UserDto.From(other);
+            var other = f.RequesterId == uid ? f.Addressee : f.Requester;
+            return ToDto(other);
         }));
     }
 
@@ -75,70 +37,136 @@ public class FriendsController(AppDbContext db) : ControllerBase
     [HttpGet("pending")]
     public async Task<IActionResult> Pending()
     {
+        var uid = Me;
         var pending = await db.Friendships
             .Include(f => f.Requester)
-            .Where(f => f.AddresseeId == Me && f.Status == FriendshipStatus.Pending)
+            .Where(f => f.AddresseeId == uid && f.Status == FriendshipStatus.Pending)
             .ToListAsync();
 
         return Ok(pending.Select(f => new
         {
-            friendshipId = f.Id,
-            requester    = UserDto.From(f.Requester),
-            createdAt    = f.CreatedAt,
+            friendshipId = f.Id.ToString(),
+            requester    = ToDto(f.Requester),
+            createdAt    = f.CreatedAt.ToString("o"),
         }));
+    }
+
+    // GET /api/friends/search?q=
+    [HttpGet("search")]
+    public async Task<IActionResult> Search([FromQuery] string q)
+    {
+        if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
+            return Ok(Array.Empty<object>());
+
+        var uid   = Me;
+        var lower = q.ToLower();
+
+        var connectedIds = await db.Friendships
+            .Where(f => f.RequesterId == uid || f.AddresseeId == uid)
+            .Select(f => f.RequesterId == uid ? f.AddresseeId : f.RequesterId)
+            .ToListAsync();
+
+        var results = await db.Users
+            .Where(u => u.Id != uid
+                && !connectedIds.Contains(u.Id)
+                && (u.Username.ToLower().Contains(lower) ||
+                    (u.DisplayName != null &&
+                     u.DisplayName.ToLower().Contains(lower))))
+            .Take(20)
+            .ToListAsync();
+
+        return Ok(results.Select(ToDto));
+    }
+
+    // POST /api/friends/request
+    [HttpPost("request")]
+    public async Task<IActionResult> SendRequest([FromBody] FriendRequestBody req)
+    {
+        var uid         = Me;
+        var addresseeId = Guid.Parse(req.AddresseeId);
+
+        if (uid == addresseeId)
+            return BadRequest(new { message = "Cannot add yourself." });
+
+        var exists = await db.Friendships.AnyAsync(f =>
+            (f.RequesterId == uid && f.AddresseeId == addresseeId) ||
+            (f.RequesterId == addresseeId && f.AddresseeId == uid));
+
+        if (exists)
+            return Conflict(new { message = "Request already exists." });
+
+        db.Friendships.Add(new Friendship
+        {
+            RequesterId = uid,
+            AddresseeId = addresseeId,
+            Status      = FriendshipStatus.Pending,
+        });
+
+        await db.SaveChangesAsync();
+        return Ok();
+    }
+
+    // PATCH /api/friends/{id}/respond
+    [HttpPatch("{id:guid}/respond")]
+    public async Task<IActionResult> Respond(Guid id, [FromBody] RespondBody req)
+    {
+        var friendship = await db.Friendships.FindAsync(id);
+        if (friendship is null) return NotFound();
+        if (friendship.AddresseeId != Me) return Forbid();
+
+        friendship.Status    = req.Accept ? FriendshipStatus.Accepted : FriendshipStatus.Declined;
+        friendship.UpdatedAt = DateTime.UtcNow;
+
+        await db.SaveChangesAsync();
+        return Ok();
     }
 
     // DELETE /api/friends/{id}
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Remove(Guid id)
     {
-        var f = await db.Friendships.FirstOrDefaultAsync(f =>
-            f.Id == id && (f.RequesterId == Me || f.AddresseeId == Me));
-        if (f is null) return NotFound();
-        db.Friendships.Remove(f);
+        var uid        = Me;
+        var friendship = await db.Friendships.FindAsync(id);
+        if (friendship is null) return NotFound();
+        if (friendship.RequesterId != uid && friendship.AddresseeId != uid)
+            return Forbid();
+
+        db.Friendships.Remove(friendship);
         await db.SaveChangesAsync();
-        return NoContent();
+        return Ok();
     }
 
     // GET /api/friends/leaderboard
     [HttpGet("leaderboard")]
     public async Task<IActionResult> Leaderboard()
     {
+        var uid = Me;
+
         var friendIds = await db.Friendships
-            .Where(f =>
-                (f.RequesterId == Me || f.AddresseeId == Me) &&
-                f.Status == FriendshipStatus.Accepted)
-            .Select(f => f.RequesterId == Me ? f.AddresseeId : f.RequesterId)
+            .Where(f => f.Status == FriendshipStatus.Accepted &&
+                        (f.RequesterId == uid || f.AddresseeId == uid))
+            .Select(f => f.RequesterId == uid ? f.AddresseeId : f.RequesterId)
             .ToListAsync();
 
-        friendIds.Add(Me);
+        friendIds.Add(uid);
 
         var users = await db.Users
             .Where(u => friendIds.Contains(u.Id))
             .OrderByDescending(u => u.CurrentStreak)
-            .Take(50)
             .ToListAsync();
 
-        return Ok(users.Select(UserDto.From));
+        return Ok(users.Select(ToDto));
     }
 
-    // GET /api/friends/search?q=john
-    [HttpGet("search")]
-    public async Task<IActionResult> Search([FromQuery] string q)
-    {
-        if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
-            return BadRequest(new { message = "Query too short." });
-
-        var results = await db.Users
-            .Where(u => u.Id != Me &&
-                (EF.Functions.ILike(u.Username, $"%{q}%") ||
-                 EF.Functions.ILike(u.DisplayName ?? "", $"%{q}%")))
-            .Take(20)
-            .ToListAsync();
-
-        return Ok(results.Select(UserDto.From));
-    }
+    private static FriendUserDto ToDto(User u) => new(
+        u.Id.ToString(), u.Email, u.Username,
+        u.DisplayName, u.AvatarUrl,
+        u.CurrentStreak, u.BestStreak);
 }
 
-public record FriendRequestBody(Guid AddresseeId);
+public record FriendRequestBody(string AddresseeId);
 public record RespondBody(bool Accept);
+public record FriendUserDto(
+    string Id, string Email, string Username,
+    string? DisplayName, string? AvatarUrl,
+    int CurrentStreak, int BestStreak);

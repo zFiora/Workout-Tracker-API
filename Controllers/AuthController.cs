@@ -33,7 +33,7 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
         db.Users.Add(user);
         await db.SaveChangesAsync();
 
-        return Ok(new AuthResponse(jwt.Generate(user), UserDto.From(user)));
+        return Ok(new AuthResponse(jwt.Generate(user), ToDto(user)));
     }
 
     // POST /api/auth/login
@@ -46,7 +46,7 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
         if (user is null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
             return Unauthorized(new { message = "Invalid credentials." });
 
-        return Ok(new AuthResponse(jwt.Generate(user), UserDto.From(user)));
+        return Ok(new AuthResponse(jwt.Generate(user), ToDto(user)));
     }
 
     // POST /api/auth/refresh
@@ -57,23 +57,37 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
         var id   = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         var user = await db.Users.FindAsync(id);
         if (user is null) return Unauthorized();
-        return Ok(new AuthResponse(jwt.Generate(user), UserDto.From(user)));
+        return Ok(new AuthResponse(jwt.Generate(user), ToDto(user)));
     }
+
+    // POST /api/auth/change-password
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest req)
+    {
+        var id   = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var user = await db.Users.FindAsync(id);
+        if (user is null) return Unauthorized();
+
+        if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, user.PasswordHash))
+            return Unauthorized(new { message = "Current password is incorrect." });
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
+        await db.SaveChangesAsync();
+
+        return Ok();
+    }
+
+    private static UserDto ToDto(User u) => new(
+        u.Id.ToString(), u.Email, u.Username, u.DisplayName,
+        u.AvatarUrl, u.CurrentStreak, u.BestStreak,
+        u.LastWorkoutDate?.ToString("yyyy-MM-dd"));
 }
 
-// ── DTOs ──────────────────────────────────────────────────────────────────────
 public record RegisterRequest(
-    string Email, string Username, string Password, string? DisplayName);
+    string Email, string Username,
+    string Password, string? DisplayName);
 
 public record LoginRequest(string Identity, string Password);
-
 public record AuthResponse(string Token, UserDto User);
-
-public record UserDto(
-    Guid Id, string Email, string Username, string? DisplayName,
-    string? AvatarUrl, int CurrentStreak, int BestStreak)
-{
-    public static UserDto From(User u) => new(
-        u.Id, u.Email, u.Username, u.DisplayName,
-        u.AvatarUrl, u.CurrentStreak, u.BestStreak);
-}
+public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
