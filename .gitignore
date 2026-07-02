@@ -1,4 +1,4 @@
-.claude/
-appsettings.Development.json
 bin/
 obj/
+.claude/
+appsettings.Development.json
