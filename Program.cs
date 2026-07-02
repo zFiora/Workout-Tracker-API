@@ -7,20 +7,11 @@ using WorkoutTrackerAPI.Data;
 using WorkoutTrackerAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-Console.WriteLine("===== ENVIRONMENT =====");
 
-Console.WriteLine($"DATABASE_URL = {Environment.GetEnvironmentVariable("DATABASE_URL")}");
-Console.WriteLine($"ConnectionStrings__DefaultConnection = {Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")}");
-Console.WriteLine($"Jwt__Key = {(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("Jwt__Key")) ? "NULL" : "FOUND")}");
 // ── Database ──────────────────────────────────────────────────────────────────
-var connectionString =
-    builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? builder.Configuration["DATABASE_URL"];
-
-Console.WriteLine($"CS: {(string.IsNullOrWhiteSpace(connectionString) ? "NULL" : "FOUND")}");
-
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseNpgsql(connectionString));
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 
 // ── JWT Auth ──────────────────────────────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:Key"]!;
