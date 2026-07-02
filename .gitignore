@@ -1,1 +1,4 @@
+.claude/
 appsettings.Development.json
+bin/
+obj/

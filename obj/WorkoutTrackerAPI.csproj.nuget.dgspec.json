@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\HP\\Desktop\\projects\\.NET-PROJECTS\\WorkoutTrackerAPI\\WorkoutTrackerAPI.csproj": {}
+    "c:\\Users\\HP\\Desktop\\projects\\.NET-PROJECTS\\WorkoutTrackerAPI\\WorkoutTrackerAPI.csproj": {}
   },
   "projects": {
-    "C:\\Users\\HP\\Desktop\\projects\\.NET-PROJECTS\\WorkoutTrackerAPI\\WorkoutTrackerAPI.csproj": {
+    "c:\\Users\\HP\\Desktop\\projects\\.NET-PROJECTS\\WorkoutTrackerAPI\\WorkoutTrackerAPI.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\HP\\Desktop\\projects\\.NET-PROJECTS\\WorkoutTrackerAPI\\WorkoutTrackerAPI.csproj",
+        "projectUniqueName": "c:\\Users\\HP\\Desktop\\projects\\.NET-PROJECTS\\WorkoutTrackerAPI\\WorkoutTrackerAPI.csproj",
         "projectName": "WorkoutTrackerAPI",
-        "projectPath": "C:\\Users\\HP\\Desktop\\projects\\.NET-PROJECTS\\WorkoutTrackerAPI\\WorkoutTrackerAPI.csproj",
+        "projectPath": "c:\\Users\\HP\\Desktop\\projects\\.NET-PROJECTS\\WorkoutTrackerAPI\\WorkoutTrackerAPI.csproj",
         "packagesPath": "C:\\Users\\HP\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\HP\\Desktop\\projects\\.NET-PROJECTS\\WorkoutTrackerAPI\\obj\\",
+        "outputPath": "c:\\Users\\HP\\Desktop\\projects\\.NET-PROJECTS\\WorkoutTrackerAPI\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"

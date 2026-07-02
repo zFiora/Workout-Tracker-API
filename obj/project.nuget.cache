@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "fAL+MZCNWG0=",
+  "dgSpecHash": "HG/VJuI0Hs0=",
   "success": true,
-  "projectFilePath": "C:\\Users\\HP\\Desktop\\projects\\.NET-PROJECTS\\WorkoutTrackerAPI\\WorkoutTrackerAPI.csproj",
+  "projectFilePath": "c:\\Users\\HP\\Desktop\\projects\\.NET-PROJECTS\\WorkoutTrackerAPI\\WorkoutTrackerAPI.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\HP\\.nuget\\packages\\bcrypt.net-next\\4.2.0\\bcrypt.net-next.4.2.0.nupkg.sha512",
     "C:\\Users\\HP\\.nuget\\packages\\cloudinarydotnet\\1.29.2\\cloudinarydotnet.1.29.2.nupkg.sha512",
