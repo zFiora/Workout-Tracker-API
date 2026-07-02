@@ -7,15 +7,7 @@ using WorkoutTrackerAPI.Data;
 using WorkoutTrackerAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-Console.WriteLine("===== Environment Variables =====");
 
-foreach (var kv in builder.Configuration.AsEnumerable())
-{
-    if (kv.Key.Contains("Connection", StringComparison.OrdinalIgnoreCase))
-    {
-        Console.WriteLine($"{kv.Key} = {kv.Value}");
-    }
-}
 // ── Database ──────────────────────────────────────────────────────────────────
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
