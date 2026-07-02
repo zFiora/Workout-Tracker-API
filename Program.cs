@@ -7,7 +7,11 @@ using WorkoutTrackerAPI.Data;
 using WorkoutTrackerAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+Console.WriteLine("===== ENVIRONMENT =====");
 
+Console.WriteLine($"DATABASE_URL = {Environment.GetEnvironmentVariable("DATABASE_URL")}");
+Console.WriteLine($"ConnectionStrings__DefaultConnection = {Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")}");
+Console.WriteLine($"Jwt__Key = {(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("Jwt__Key")) ? "NULL" : "FOUND")}");
 // ── Database ──────────────────────────────────────────────────────────────────
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
