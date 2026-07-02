@@ -8,6 +8,8 @@ using WorkoutTrackerAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var cs = builder.Configuration.GetConnectionString("DefaultConnection");
+Console.WriteLine($"CS: {(cs is null ? "NULL" : "FOUND")}");
 // ── Database ──────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
