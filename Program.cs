@@ -7,9 +7,15 @@ using WorkoutTrackerAPI.Data;
 using WorkoutTrackerAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+Console.WriteLine("===== Environment Variables =====");
 
-var cs = builder.Configuration.GetConnectionString("DefaultConnection");
-Console.WriteLine($"CS: {(cs is null ? "NULL" : "FOUND")}");
+foreach (var kv in builder.Configuration.AsEnumerable())
+{
+    if (kv.Key.Contains("Connection", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.WriteLine($"{kv.Key} = {kv.Value}");
+    }
+}
 // ── Database ──────────────────────────────────────────────────────────────────
 builder.Services.AddDbContext<AppDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
