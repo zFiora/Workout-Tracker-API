@@ -17,8 +17,14 @@ foreach (var kv in builder.Configuration.AsEnumerable())
     }
 }
 // ── Database ──────────────────────────────────────────────────────────────────
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? builder.Configuration["DATABASE_URL"];
+
+Console.WriteLine($"CS: {(string.IsNullOrWhiteSpace(connectionString) ? "NULL" : "FOUND")}");
+
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    opt.UseNpgsql(connectionString));
 
 // ── JWT Auth ──────────────────────────────────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:Key"]!;
