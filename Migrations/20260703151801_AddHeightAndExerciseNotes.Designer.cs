@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using WorkoutTrackerAPI.Data;
@@ -13,9 +14,11 @@ using WorkoutTrackerAPI.Data;
 namespace WorkoutTrackerAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260703151801_AddHeightAndExerciseNotes")]
+    partial class AddHeightAndExerciseNotes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -267,9 +270,6 @@ namespace WorkoutTrackerAPI.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
-
                     b.PrimitiveCollection<List<int>>("ExerciseIds")
                         .IsRequired()
                         .HasColumnType("integer[]");
@@ -277,6 +277,9 @@ namespace WorkoutTrackerAPI.Migrations
                     b.Property<string>("IconPath")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsPublic")
                         .HasColumnType("boolean");
@@ -351,13 +354,13 @@ namespace WorkoutTrackerAPI.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("WorkoutTrackerAPI.Models.WorkoutSession", b =>
+            modelBuilder.Entity("WorkoutTrackerAPI.Models.WorkoutEntry", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime>("CreatedAtServer")
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<long>("DurationMs")
@@ -366,7 +369,7 @@ namespace WorkoutTrackerAPI.Migrations
                     b.Property<DateTime>("EndedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<JsonDocument>("LogsJson")
+                    b.Property<JsonDocument>("Logs")
                         .IsRequired()
                         .HasColumnType("jsonb");
 
@@ -374,12 +377,15 @@ namespace WorkoutTrackerAPI.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("TemplateIcon")
+                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid?>("TemplateId")
-                        .HasColumnType("uuid");
+                    b.Property<string>("TemplateId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("TemplateName")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<Guid>("UserId")
@@ -387,14 +393,98 @@ namespace WorkoutTrackerAPI.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "EndedAt");
-
-                    b.HasIndex("UserId", "Id")
+                    b.HasIndex("UserId", "TemplateId", "StartedAt")
                         .IsUnique();
 
-                    b.HasIndex("UserId", "TemplateId");
+                    b.ToTable("WorkoutEntries");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerAPI.Models.WorkoutSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("DurationMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("EndedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("TemplateId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TemplateId");
+
+                    b.HasIndex("UserId", "TemplateId", "StartedAt");
 
                     b.ToTable("WorkoutSessions");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerAPI.Models.WorkoutSessionExercise", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("ExerciseId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("WorkoutSessionId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkoutSessionId");
+
+                    b.ToTable("WorkoutSessionExercises");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerAPI.Models.WorkoutSessionSet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Reps")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SetType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double>("WeightKg")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid>("WorkoutSessionExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WorkoutSessionExerciseId");
+
+                    b.ToTable("WorkoutSessionSets");
                 });
 
             modelBuilder.Entity("WorkoutTrackerAPI.Models.ExerciseNote", b =>
@@ -517,15 +607,55 @@ namespace WorkoutTrackerAPI.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("WorkoutTrackerAPI.Models.WorkoutSession", b =>
+            modelBuilder.Entity("WorkoutTrackerAPI.Models.WorkoutEntry", b =>
                 {
                     b.HasOne("WorkoutTrackerAPI.Models.User", "User")
-                        .WithMany("WorkoutSessions")
+                        .WithMany("WorkoutEntries")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerAPI.Models.WorkoutSession", b =>
+                {
+                    b.HasOne("WorkoutTrackerAPI.Models.Template", "Template")
+                        .WithMany()
+                        .HasForeignKey("TemplateId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("WorkoutTrackerAPI.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Template");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerAPI.Models.WorkoutSessionExercise", b =>
+                {
+                    b.HasOne("WorkoutTrackerAPI.Models.WorkoutSession", "WorkoutSession")
+                        .WithMany("Exercises")
+                        .HasForeignKey("WorkoutSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkoutSession");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerAPI.Models.WorkoutSessionSet", b =>
+                {
+                    b.HasOne("WorkoutTrackerAPI.Models.WorkoutSessionExercise", "WorkoutSessionExercise")
+                        .WithMany("Sets")
+                        .HasForeignKey("WorkoutSessionExerciseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("WorkoutSessionExercise");
                 });
 
             modelBuilder.Entity("WorkoutTrackerAPI.Models.User", b =>
@@ -542,7 +672,17 @@ namespace WorkoutTrackerAPI.Migrations
 
                     b.Navigation("Templates");
 
-                    b.Navigation("WorkoutSessions");
+                    b.Navigation("WorkoutEntries");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerAPI.Models.WorkoutSession", b =>
+                {
+                    b.Navigation("Exercises");
+                });
+
+            modelBuilder.Entity("WorkoutTrackerAPI.Models.WorkoutSessionExercise", b =>
+                {
+                    b.Navigation("Sets");
                 });
 #pragma warning restore 612, 618
         }

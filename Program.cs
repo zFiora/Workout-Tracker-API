@@ -33,7 +33,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 builder.Services.AddSingleton<JwtService>();
-builder.Services.AddSingleton<CloudinaryService>();
 builder.Services.AddControllers()
     .AddJsonOptions(opt =>
     {

@@ -7,6 +7,7 @@ public class MacroProfile
     public bool IsMale { get; set; }
     public int Age { get; set; }
     public double ActivityFactor { get; set; }
+    public double? HeightCm { get; set; }
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public User User { get; set; } = null!;

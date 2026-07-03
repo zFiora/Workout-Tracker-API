@@ -9,13 +9,14 @@ public class User
     [MaxLength(100)] public required string Username { get; set; }
     public required string PasswordHash { get; set; }
     [MaxLength(100)] public string? DisplayName { get; set; }
-    public string? AvatarUrl { get; set; }
+    public string? AvatarBase64 { get; set; }
+    public string? AvatarContentType { get; set; }
     public int CurrentStreak { get; set; }
     public int BestStreak { get; set; }
     public DateTime? LastWorkoutDate { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public ICollection<WorkoutEntry> WorkoutEntries { get; set; } = [];
+    public ICollection<WorkoutSession> WorkoutSessions { get; set; } = [];
     public ICollection<Template> Templates { get; set; } = [];
     public ICollection<PrEvent> PrEvents { get; set; } = [];
     public ICollection<Friendship> SentRequests { get; set; } = [];

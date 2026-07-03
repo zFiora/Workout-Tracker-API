@@ -4,15 +4,16 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerAPI.Data;
 using WorkoutTrackerAPI.Models;
-using WorkoutTrackerAPI.Services;
 
 namespace WorkoutTrackerAPI.Controllers;
 
 [ApiController]
 [Route("api/users")]
 [Authorize]
-public class UsersController(AppDbContext db, CloudinaryService cloudinary) : ControllerBase
+public class UsersController(AppDbContext db) : ControllerBase
 {
+    private const long MaxAvatarBytes = 2 * 1024 * 1024;
+
     private Guid Me => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     // GET /api/users/me
@@ -50,13 +51,21 @@ public class UsersController(AppDbContext db, CloudinaryService cloudinary) : Co
 
         if (req.DisplayName is not null)     user.DisplayName    = req.DisplayName;
         if (req.Username is not null)        user.Username       = req.Username;
-        if (req.CurrentStreak.HasValue)      user.CurrentStreak  = req.CurrentStreak.Value;
-        if (req.BestStreak.HasValue)         user.BestStreak     = req.BestStreak.Value;
-        if (req.LastWorkoutDate is not null)
-            user.LastWorkoutDate = DateTime.Parse(req.LastWorkoutDate).ToUniversalTime();
 
         await db.SaveChangesAsync();
         return Ok(ToDto(user));
+    }
+
+    // GET /api/users/me/streak
+    [HttpGet("me/streak")]
+    public async Task<IActionResult> GetStreak()
+    {
+        var user = await db.Users.FindAsync(Me);
+        if (user is null) return NotFound();
+
+        return Ok(new StreakDto(
+            user.CurrentStreak, user.BestStreak,
+            user.LastWorkoutDate?.ToString("yyyy-MM-dd")));
     }
 
     // PATCH /api/users/me/avatar
@@ -70,41 +79,45 @@ public class UsersController(AppDbContext db, CloudinaryService cloudinary) : Co
         if (!allowedTypes.Contains(file.ContentType.ToLower()))
             return BadRequest(new { message = "Only JPEG, PNG and WebP are allowed." });
 
-        if (file.Length > 5 * 1024 * 1024)
-            return BadRequest(new { message = "Image must be under 5MB." });
+        if (file.Length > MaxAvatarBytes)
+            return BadRequest(new { message = "Image must be under 2MB." });
 
         var user = await db.Users.FindAsync(Me);
         if (user is null) return NotFound();
 
-        var url = await cloudinary.UploadAvatarAsync(file, Me.ToString());
-        user.AvatarUrl = url;
+        using var stream = new MemoryStream();
+        await file.CopyToAsync(stream);
+        user.AvatarBase64 = Convert.ToBase64String(stream.ToArray());
+        user.AvatarContentType = file.ContentType.ToLower();
+
         await db.SaveChangesAsync();
 
-        return Ok(new { avatarUrl = url });
+        return Ok(new { avatarBase64 = user.AvatarBase64, avatarContentType = user.AvatarContentType });
     }
 
     private static UserDto ToDto(User u) => new(
         u.Id.ToString(), u.Email, u.Username, u.DisplayName,
-        u.AvatarUrl, u.CurrentStreak, u.BestStreak,
+        u.AvatarBase64, u.AvatarContentType, u.CurrentStreak, u.BestStreak,
         u.LastWorkoutDate?.ToString("yyyy-MM-dd"));
 
     private static PublicUserDto ToPublicDto(User u) => new(
         u.Id.ToString(), u.Username, u.DisplayName,
-        u.AvatarUrl, u.CurrentStreak, u.BestStreak);
+        u.AvatarBase64, u.AvatarContentType, u.CurrentStreak, u.BestStreak);
 }
 
 public record UpdateUserRequest(
-    string? DisplayName, string? Username,
-    int? CurrentStreak, int? BestStreak,
-    string? LastWorkoutDate);
+    string? DisplayName, string? Username);
 
 public record UserDto(
     string Id, string Email, string Username,
-    string? DisplayName, string? AvatarUrl,
+    string? DisplayName, string? AvatarBase64, string? AvatarContentType,
     int CurrentStreak, int BestStreak,
     string? LastWorkoutDate);
 
 public record PublicUserDto(
     string Id, string Username,
-    string? DisplayName, string? AvatarUrl,
+    string? DisplayName, string? AvatarBase64, string? AvatarContentType,
     int CurrentStreak, int BestStreak);
+
+public record StreakDto(
+    int CurrentStreak, int BestStreak, string? LastWorkoutDate);

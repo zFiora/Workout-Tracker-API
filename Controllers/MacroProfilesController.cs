@@ -39,6 +39,7 @@ public class MacroProfilesController(AppDbContext db) : ControllerBase
         p.IsMale         = req.IsMale;
         p.Age            = req.Age;
         p.ActivityFactor = req.ActivityFactor;
+        p.HeightCm       = req.HeightCm;
         p.UpdatedAt      = DateTime.UtcNow;
 
         await db.SaveChangesAsync();
@@ -50,14 +51,16 @@ public class MacroProfilesController(AppDbContext db) : ControllerBase
         p.IsMale,
         p.Age,
         p.ActivityFactor,
+        p.HeightCm,
         p.UpdatedAt.ToString("o"));
 }
 
-public record MacroRequest(bool IsMale, int Age, double ActivityFactor);
+public record MacroRequest(bool IsMale, int Age, double ActivityFactor, double? HeightCm);
 
 public record MacroDto(
     string Id,
     bool IsMale,
     int Age,
     double ActivityFactor,
+    double? HeightCm,
     string UpdatedAt);

@@ -160,7 +160,7 @@ public class FriendsController(AppDbContext db) : ControllerBase
 
     private static FriendUserDto ToDto(User u) => new(
         u.Id.ToString(), u.Email, u.Username,
-        u.DisplayName, u.AvatarUrl,
+        u.DisplayName, u.AvatarBase64, u.AvatarContentType,
         u.CurrentStreak, u.BestStreak);
 }
 
@@ -168,5 +168,5 @@ public record FriendRequestBody(string AddresseeId);
 public record RespondBody(bool Accept);
 public record FriendUserDto(
     string Id, string Email, string Username,
-    string? DisplayName, string? AvatarUrl,
+    string? DisplayName, string? AvatarBase64, string? AvatarContentType,
     int CurrentStreak, int BestStreak);

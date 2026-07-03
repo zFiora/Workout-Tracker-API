@@ -80,7 +80,7 @@ public class AuthController(AppDbContext db, JwtService jwt) : ControllerBase
 
     private static UserDto ToDto(User u) => new(
         u.Id.ToString(), u.Email, u.Username, u.DisplayName,
-        u.AvatarUrl, u.CurrentStreak, u.BestStreak,
+        u.AvatarBase64, u.AvatarContentType, u.CurrentStreak, u.BestStreak,
         u.LastWorkoutDate?.ToString("yyyy-MM-dd"));
 }
 
