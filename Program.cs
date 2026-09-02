@@ -1,5 +1,9 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -29,10 +33,68 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(
                                            Encoding.UTF8.GetBytes(jwtKey)),
         };
+
+        // A password reset must lock out any token issued before it. Since JWTs are
+        // stateless, this is enforced by comparing the token's issued-at time against
+        // the user's PasswordChangedAt on every authenticated request.
+        opt.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var sub = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (sub is null || !Guid.TryParse(sub, out var userId))
+                {
+                    context.Fail("Invalid token.");
+                    return;
+                }
+
+                var dbCtx = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                var user = await dbCtx.Users.FindAsync(userId);
+                if (user is null)
+                {
+                    context.Fail("User no longer exists.");
+                    return;
+                }
+
+                if (user.PasswordChangedAt is not null)
+                {
+                    var iat = context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Iat);
+                    if (iat is null || !long.TryParse(iat, out var iatSeconds) ||
+                        DateTimeOffset.FromUnixTimeSeconds(iatSeconds).UtcDateTime < user.PasswordChangedAt)
+                    {
+                        context.Fail("Token invalidated by a password reset.");
+                    }
+                }
+            },
+        };
     });
 
 builder.Services.AddAuthorization();
+
+builder.Services.AddRateLimiter(opt =>
+{
+    // forgot-password must never surface rate-limit state to the caller, so on
+    // rejection we still return the same generic 200 the happy path returns.
+    opt.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = StatusCodes.Status200OK;
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new { message = "If that email is registered, we've sent a reset link." }, token);
+    };
+    opt.AddPolicy("forgot-password", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(15),
+                QueueLimit = 0,
+            }));
+});
+
 builder.Services.AddSingleton<JwtService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddControllers()
     .AddJsonOptions(opt =>
     {
@@ -55,6 +117,7 @@ var app = builder.Build();
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

@@ -30,6 +30,28 @@ public class MacroProfilesController(AppDbContext db) : ControllerBase
         var p = await db.MacroProfiles
             .FirstOrDefaultAsync(m => m.UserId == Me);
 
+        if (req.Sex is not null)
+        {
+            var sex = req.Sex.Trim().ToLowerInvariant();
+            if (sex is not ("male" or "female" or "unspecified"))
+                return BadRequest(new { message = "sex must be 'male', 'female', or 'unspecified'." });
+        }
+
+        DateOnly? dateOfBirth = null;
+        if (req.DateOfBirth is not null)
+        {
+            if (!DateOnly.TryParse(req.DateOfBirth, out var dob))
+                return BadRequest(new { message = "dateOfBirth must be a valid date (YYYY-MM-DD)." });
+
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            if (dob > today)
+                return BadRequest(new { message = "dateOfBirth cannot be in the future." });
+            if (dob < today.AddYears(-120))
+                return BadRequest(new { message = "dateOfBirth is not a valid date of birth." });
+
+            dateOfBirth = dob;
+        }
+
         if (p is null)
         {
             p = new MacroProfile { UserId = Me };
@@ -42,6 +64,10 @@ public class MacroProfilesController(AppDbContext db) : ControllerBase
         p.HeightCm       = req.HeightCm;
         p.UpdatedAt      = DateTime.UtcNow;
 
+        // Absent/null sex or dateOfBirth means "leave unchanged" — never invent a value.
+        if (req.Sex is not null) p.Sex = req.Sex.Trim().ToLowerInvariant();
+        if (dateOfBirth is not null) p.DateOfBirth = dateOfBirth;
+
         await db.SaveChangesAsync();
         return Ok(ToDto(p));
     }
@@ -52,10 +78,14 @@ public class MacroProfilesController(AppDbContext db) : ControllerBase
         p.Age,
         p.ActivityFactor,
         p.HeightCm,
-        p.UpdatedAt.ToString("o"));
+        p.UpdatedAt.ToString("o"),
+        p.Sex,
+        p.DateOfBirth?.ToString("yyyy-MM-dd"));
 }
 
-public record MacroRequest(bool IsMale, int Age, double ActivityFactor, double? HeightCm);
+public record MacroRequest(
+    bool IsMale, int Age, double ActivityFactor, double? HeightCm,
+    string? Sex = null, string? DateOfBirth = null);
 
 public record MacroDto(
     string Id,
@@ -63,4 +93,6 @@ public record MacroDto(
     int Age,
     double ActivityFactor,
     double? HeightCm,
-    string UpdatedAt);
+    string UpdatedAt,
+    string? Sex,
+    string? DateOfBirth);

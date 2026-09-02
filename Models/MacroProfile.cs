@@ -8,6 +8,8 @@ public class MacroProfile
     public int Age { get; set; }
     public double ActivityFactor { get; set; }
     public double? HeightCm { get; set; }
+    public string? Sex { get; set; }
+    public DateOnly? DateOfBirth { get; set; }
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public User User { get; set; } = null!;

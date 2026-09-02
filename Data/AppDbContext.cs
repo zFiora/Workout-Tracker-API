@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<SavedTemplate> SavedTemplates => Set<SavedTemplate>();
     public DbSet<WorkoutSession> WorkoutSessions => Set<WorkoutSession>();
     public DbSet<ExerciseNote> ExerciseNotes => Set<ExerciseNote>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -47,6 +48,20 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
         b.Entity<MacroProfile>()
             .HasIndex(m => m.UserId)
             .IsUnique();
+        b.Entity<MacroProfile>()
+            .Property(m => m.DateOfBirth)
+            .HasColumnType("date");
+
+        b.Entity<PasswordResetToken>()
+            .HasIndex(t => t.TokenHash)
+            .IsUnique();
+        b.Entity<PasswordResetToken>()
+            .HasIndex(t => new { t.UserId, t.UsedAtUtc });
+        b.Entity<PasswordResetToken>()
+            .HasOne(t => t.User)
+            .WithMany()
+            .HasForeignKey(t => t.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         b.Entity<SharedTemplate>()
             .HasOne(s => s.Template)

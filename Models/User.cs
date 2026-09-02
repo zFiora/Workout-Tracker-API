@@ -14,6 +14,7 @@ public class User
     public int CurrentStreak { get; set; }
     public int BestStreak { get; set; }
     public DateTime? LastWorkoutDate { get; set; }
+    public DateTime? PasswordChangedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public ICollection<WorkoutSession> WorkoutSessions { get; set; } = [];
