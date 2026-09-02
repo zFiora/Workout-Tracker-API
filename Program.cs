@@ -59,9 +59,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
                 if (user.PasswordChangedAt is not null)
                 {
+                    // The "iat" claim is whole-second precision (JWTs truncate it), but
+                    // PasswordChangedAt is sub-second — compare both truncated to seconds,
+                    // otherwise a login in the same second as the reset gets rejected.
                     var iat = context.Principal?.FindFirstValue(JwtRegisteredClaimNames.Iat);
+                    var passwordChangedAtSeconds = new DateTimeOffset(
+                        DateTime.SpecifyKind(user.PasswordChangedAt.Value, DateTimeKind.Utc)).ToUnixTimeSeconds();
                     if (iat is null || !long.TryParse(iat, out var iatSeconds) ||
-                        DateTimeOffset.FromUnixTimeSeconds(iatSeconds).UtcDateTime < user.PasswordChangedAt)
+                        iatSeconds < passwordChangedAtSeconds)
                     {
                         context.Fail("Token invalidated by a password reset.");
                     }

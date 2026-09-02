@@ -15,12 +15,18 @@ public class JwtService(IConfiguration config)
 
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
+        // The JwtSecurityToken(issuer, audience, claims, expires, signingCredentials)
+        // overload does NOT auto-populate "iat" — it must be added explicitly, or
+        // token-issued-at checks (e.g. invalidating sessions on password reset) always
+        // see a missing claim and fail every token.
         var claims = new[]
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim("username", user.Username),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim(JwtRegisteredClaimNames.Iat,
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(), ClaimValueTypes.Integer64),
         };
 
         var token = new JwtSecurityToken(
