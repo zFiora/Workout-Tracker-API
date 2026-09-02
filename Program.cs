@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Resend;
 using WorkoutTrackerAPI.Data;
 using WorkoutTrackerAPI.Services;
 
@@ -94,7 +95,15 @@ builder.Services.AddRateLimiter(opt =>
 });
 
 builder.Services.AddSingleton<JwtService>();
-builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+
+// ── Email (Resend) ────────────────────────────────────────────────────────────
+builder.Services.AddResend(o =>
+{
+    o.ApiToken = builder.Configuration["Resend:ApiKey"] ?? "";
+    o.ThrowExceptions = false;
+});
+builder.Services.AddScoped<IEmailService, ResendEmailService>();
+builder.Services.AddScoped<PasswordResetService>();
 builder.Services.AddControllers()
     .AddJsonOptions(opt =>
     {

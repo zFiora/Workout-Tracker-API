@@ -1,6 +1,4 @@
 using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -13,11 +11,9 @@ namespace WorkoutTrackerAPI.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(AppDbContext db, JwtService jwt, IEmailService email, IConfiguration config) : ControllerBase
+public class AuthController(AppDbContext db, JwtService jwt, PasswordResetService passwordReset) : ControllerBase
 {
     private const string ForgotPasswordGenericMessage = "If that email is registered, we've sent a reset link.";
-    private const int MaxResetRequestsPerWindow = 5;
-    private static readonly TimeSpan ResetRequestWindow = TimeSpan.FromMinutes(15);
 
     // POST /api/auth/register
     [HttpPost("register")]
@@ -87,45 +83,15 @@ public class AuthController(AppDbContext db, JwtService jwt, IEmailService email
 
     // POST /api/auth/forgot-password
     // Always 200 with an identical generic body — never leaks whether the email is
-    // registered via status code, body, or timing (see docs/backend-contracts.md).
+    // registered via status code, body, or timing.
     [HttpPost("forgot-password")]
     [EnableRateLimiting("forgot-password")]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest req)
     {
-        var emailLower = req.Email.Trim().ToLower();
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Email == emailLower);
+        if (string.IsNullOrWhiteSpace(req.Email) || !IsValidEmail(req.Email))
+            return BadRequest(new { message = "A valid email address is required." });
 
-        if (user is not null)
-        {
-            var windowStart = DateTime.UtcNow - ResetRequestWindow;
-            var recentCount = await db.PasswordResetTokens
-                .CountAsync(t => t.UserId == user.Id && t.CreatedAtUtc >= windowStart);
-
-            if (recentCount < MaxResetRequestsPerWindow)
-            {
-                var outstanding = await db.PasswordResetTokens
-                    .Where(t => t.UserId == user.Id && t.UsedAtUtc == null)
-                    .ToListAsync();
-                foreach (var old in outstanding)
-                    old.UsedAtUtc = DateTime.UtcNow;
-
-                var ttlMinutes = int.TryParse(config["PASSWORD_RESET_TOKEN_TTL_MINUTES"], out var ttl) ? ttl : 30;
-                var rawToken = GenerateResetToken();
-
-                db.PasswordResetTokens.Add(new PasswordResetToken
-                {
-                    UserId = user.Id,
-                    TokenHash = HashToken(rawToken),
-                    ExpiresAtUtc = DateTime.UtcNow.AddMinutes(ttlMinutes),
-                });
-                await db.SaveChangesAsync();
-
-                await email.SendPasswordResetEmailAsync(user.Email, rawToken, ttlMinutes);
-            }
-        }
-
-        // Fixed floor latency so response time doesn't distinguish "user exists" from "doesn't".
-        await Task.Delay(150);
+        await passwordReset.RequestResetAsync(req.Email);
         return Ok(new { message = ForgotPasswordGenericMessage });
     }
 
@@ -133,39 +99,25 @@ public class AuthController(AppDbContext db, JwtService jwt, IEmailService email
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest req)
     {
-        if (string.IsNullOrWhiteSpace(req.NewPassword) || req.NewPassword.Length < 8)
-            return BadRequest(new { message = "Password must be at least 8 characters." });
-
-        var tokenHash = HashToken(req.Token);
-        var entry = await db.PasswordResetTokens
-            .Include(t => t.User)
-            .FirstOrDefaultAsync(t => t.TokenHash == tokenHash);
-
-        if (entry is null)
-            return BadRequest(new { message = "This reset link is invalid." });
-
-        if (entry.UsedAtUtc is not null)
-            return BadRequest(new { message = "This reset link has already been used." });
-
-        if (entry.ExpiresAtUtc < DateTime.UtcNow)
-            return BadRequest(new { message = "This reset link has expired. Request a new one." });
-
-        entry.User.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
-        entry.User.PasswordChangedAt = DateTime.UtcNow;
-        entry.UsedAtUtc = DateTime.UtcNow;
-
-        await db.SaveChangesAsync();
-        await email.SendPasswordChangedNotificationAsync(entry.User.Email);
+        var (success, error) = await passwordReset.ResetPasswordAsync(req.Token, req.NewPassword);
+        if (!success)
+            return BadRequest(new { message = error });
 
         return Ok(new { message = "Password reset." });
     }
 
-    private static string GenerateResetToken() =>
-        Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
-            .TrimEnd('=').Replace('+', '-').Replace('/', '_');
-
-    private static string HashToken(string token) =>
-        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
+    private static bool IsValidEmail(string email)
+    {
+        try
+        {
+            _ = new System.Net.Mail.MailAddress(email);
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
 
     private static UserDto ToDto(User u) => new(
         u.Id.ToString(), u.Email, u.Username, u.DisplayName,
