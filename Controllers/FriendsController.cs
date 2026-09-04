@@ -20,6 +20,7 @@ public class FriendsController(AppDbContext db) : ControllerBase
     {
         var uid = Me;
         var friends = await db.Friendships
+            .AsNoTracking()
             .Include(f => f.Requester)
             .Include(f => f.Addressee)
             .Where(f => f.Status == FriendshipStatus.Accepted &&
@@ -39,6 +40,7 @@ public class FriendsController(AppDbContext db) : ControllerBase
     {
         var uid = Me;
         var pending = await db.Friendships
+            .AsNoTracking()
             .Include(f => f.Requester)
             .Where(f => f.AddresseeId == uid && f.Status == FriendshipStatus.Pending)
             .ToListAsync();
@@ -67,6 +69,7 @@ public class FriendsController(AppDbContext db) : ControllerBase
             .ToListAsync();
 
         var results = await db.Users
+            .AsNoTracking()
             .Where(u => u.Id != uid
                 && !connectedIds.Contains(u.Id)
                 && (u.Username.ToLower().Contains(lower) ||
@@ -151,6 +154,7 @@ public class FriendsController(AppDbContext db) : ControllerBase
         friendIds.Add(uid);
 
         var users = await db.Users
+            .AsNoTracking()
             .Where(u => friendIds.Contains(u.Id))
             .OrderByDescending(u => u.CurrentStreak)
             .ToListAsync();

@@ -32,6 +32,7 @@ public class ExercisesController(AppDbContext db) : ControllerBase
         var allowedUserIds = new HashSet<Guid>(friendIds) { uid };
 
         var sessions = await db.WorkoutSessions
+            .AsNoTracking()
             .Where(s => allowedUserIds.Contains(s.UserId))
             .ToListAsync();
 
@@ -68,6 +69,7 @@ public class ExercisesController(AppDbContext db) : ControllerBase
 
         var userIds = bestPerUser.Keys.ToList();
         var users = await db.Users
+            .AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id);
 
@@ -101,6 +103,7 @@ public class ExercisesController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> ListNotes(int exerciseId)
     {
         var notes = await db.ExerciseNotes
+            .AsNoTracking()
             .Where(n => n.UserId == Me && n.ExerciseId == exerciseId)
             .OrderByDescending(n => n.CreatedAt)
             .ToListAsync();

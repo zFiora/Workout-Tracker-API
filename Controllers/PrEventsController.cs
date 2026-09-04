@@ -36,7 +36,7 @@ public class PrEventsController(AppDbContext db) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] int? exerciseId)
     {
-        var q = db.PrEvents.Where(p => p.UserId == Me);
+        var q = db.PrEvents.AsNoTracking().Where(p => p.UserId == Me);
         if (exerciseId.HasValue) q = q.Where(p => p.ExerciseId == exerciseId);
         var results = await q.OrderByDescending(p => p.PerformedAt).ToListAsync();
         return Ok(results.Select(p => new

@@ -20,7 +20,7 @@ public class UsersController(AppDbContext db) : ControllerBase
     [HttpGet("me")]
     public async Task<IActionResult> GetMe()
     {
-        var user = await db.Users.FindAsync(Me);
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == Me);
         return user is null ? NotFound() : Ok(ToDto(user));
     }
 
@@ -38,7 +38,7 @@ public class UsersController(AppDbContext db) : ControllerBase
         if (!areFriends && uid != id)
             return Forbid();
 
-        var user = await db.Users.FindAsync(id);
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
         return user is null ? NotFound() : Ok(ToPublicDto(user));
     }
 
@@ -60,7 +60,7 @@ public class UsersController(AppDbContext db) : ControllerBase
     [HttpGet("me/streak")]
     public async Task<IActionResult> GetStreak()
     {
-        var user = await db.Users.FindAsync(Me);
+        var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == Me);
         if (user is null) return NotFound();
 
         return Ok(new StreakDto(

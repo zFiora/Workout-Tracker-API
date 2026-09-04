@@ -14,8 +14,17 @@ using WorkoutTrackerAPI.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ──────────────────────────────────────────────────────────────────
-builder.Services.AddDbContext<AppDbContext>(opt =>
+// A DbContext instance can only run one operation at a time, so endpoints that need
+// to run independent reads concurrently (e.g. sync/bootstrap) pull short-lived
+// contexts from this factory instead of sharing the request-scoped one. The plain
+// AppDbContext used everywhere else is then just a scoped instance sourced from the
+// same factory — registering AddDbContext separately alongside AddDbContextFactory
+// causes a DI lifetime conflict (the factory is a singleton but AddDbContext's
+// DbContextOptions is scoped), so this is the one registration for both.
+builder.Services.AddDbContextFactory<AppDbContext>(opt =>
     opt.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddScoped<AppDbContext>(sp =>
+    sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
 
 
 // ── JWT Auth ──────────────────────────────────────────────────────────────────
@@ -50,7 +59,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 }
 
                 var dbCtx = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
-                var user = await dbCtx.Users.FindAsync(userId);
+                var user = await dbCtx.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == userId);
                 if (user is null)
                 {
                     context.Fail("User no longer exists.");

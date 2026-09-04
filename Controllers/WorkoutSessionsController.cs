@@ -85,7 +85,7 @@ public class WorkoutSessionsController(AppDbContext db) : ControllerBase
         else if (sinceDays.HasValue)
             cutoff = DateTime.UtcNow.AddDays(-sinceDays.Value);
 
-        var query = db.WorkoutSessions.Where(s => s.UserId == uid);
+        var query = db.WorkoutSessions.AsNoTracking().Where(s => s.UserId == uid);
         if (cutoff.HasValue)
             query = query.Where(s => s.EndedAt >= cutoff.Value);
 
@@ -111,6 +111,7 @@ public class WorkoutSessionsController(AppDbContext db) : ControllerBase
         var allowedUserIds = new HashSet<Guid>(friendIds) { uid };
 
         var sessions = await db.WorkoutSessions
+            .AsNoTracking()
             .Where(s => s.TemplateId == templateId && allowedUserIds.Contains(s.UserId))
             .ToListAsync();
 
@@ -129,6 +130,7 @@ public class WorkoutSessionsController(AppDbContext db) : ControllerBase
 
         var userIds = bestPerUser.Select(x => x.Session.UserId).ToList();
         var users = await db.Users
+            .AsNoTracking()
             .Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id);
 

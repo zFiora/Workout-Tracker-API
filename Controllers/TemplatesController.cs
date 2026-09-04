@@ -23,7 +23,7 @@ public class TemplatesController(AppDbContext db) : ControllerBase
         [FromQuery] int? sinceDays = null)
     {
         var uid = Me;
-        IQueryable<Template> q = db.Templates.Where(t => t.UserId == uid || t.IsPublic);
+        IQueryable<Template> q = db.Templates.AsNoTracking().Where(t => t.UserId == uid || t.IsPublic);
 
         if (!includeDeleted)
         {
@@ -57,6 +57,7 @@ public class TemplatesController(AppDbContext db) : ControllerBase
             return Forbid();
 
         var templates = await db.Templates
+            .AsNoTracking()
             .Where(t => t.UserId == userId && t.IsPublic && t.DeletedAt == null)
             .OrderByDescending(t => t.UpdatedAt)
             .ToListAsync();
@@ -184,6 +185,7 @@ public class TemplatesController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> ListSaved()
     {
         var saved = await db.SavedTemplates
+            .AsNoTracking()
             .Where(s => s.UserId == Me && !s.IsDeleted)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();

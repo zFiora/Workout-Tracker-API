@@ -19,6 +19,7 @@ public class MacroProfilesController(AppDbContext db) : ControllerBase
     public async Task<IActionResult> Get()
     {
         var p = await db.MacroProfiles
+            .AsNoTracking()
             .FirstOrDefaultAsync(m => m.UserId == Me);
         return p is null ? NotFound() : Ok(ToDto(p));
     }

@@ -18,7 +18,7 @@ public class MeasurementsController(AppDbContext db) : ControllerBase
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] DateTime? from)
     {
-        var q = db.Measurements.Where(m => m.UserId == Me);
+        var q = db.Measurements.AsNoTracking().Where(m => m.UserId == Me);
         if (from.HasValue)
             q = q.Where(m => m.Date >= from.Value.ToUniversalTime());
 
