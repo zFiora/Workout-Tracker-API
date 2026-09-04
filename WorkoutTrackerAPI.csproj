@@ -4,6 +4,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Precompiles native code at publish time instead of JIT-ing on first request,
+         shortening the visible-to-users window during a container restart/cold start.
+         Only takes effect when a RuntimeIdentifier is supplied — the Dockerfile passes
+         "-r linux-x64" on its `dotnet publish` command for that reason. Deliberately NOT
+         hardcoding RuntimeIdentifier/SelfContained here: doing so forces that RID on
+         local `dotnet build`/`dotnet run` too, which breaks on a non-linux-x64 dev machine. -->
+    <PublishReadyToRun>true</PublishReadyToRun>
   </PropertyGroup>
 
   <ItemGroup>

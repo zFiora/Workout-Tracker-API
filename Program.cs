@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -135,7 +136,20 @@ builder.Services.AddCors(opt =>
         .AllowAnyHeader()
         .AllowAnyMethod()));
 
+// ── Response compression ─────────────────────────────────────────────────────
+// JSON payloads (templates, workout session logs) compress 5-10x; this matters
+// far more on mobile cellular than any server-side query time.
+builder.Services.AddResponseCompression(opt =>
+{
+    opt.EnableForHttps = true;
+    opt.Providers.Add<BrotliCompressionProvider>();
+    opt.Providers.Add<GzipCompressionProvider>();
+});
+
 var app = builder.Build();
+
+// Must run before anything that writes the response body.
+app.UseResponseCompression();
 
 app.UseSwagger();
 app.UseSwaggerUI();
