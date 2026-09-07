@@ -41,6 +41,7 @@ public class AuthController(AppDbContext db, JwtService jwt, PasswordResetServic
 
     // POST /api/auth/login
     [HttpPost("login")]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
         var user = await db.Users.FirstOrDefaultAsync(u =>

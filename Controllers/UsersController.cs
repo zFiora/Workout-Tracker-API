@@ -95,6 +95,60 @@ public class UsersController(AppDbContext db) : ControllerBase
         return Ok(new { avatarBase64 = user.AvatarBase64, avatarContentType = user.AvatarContentType });
     }
 
+    // DELETE /api/users/me — immediate, irreversible. Requires the current password
+    // so a stolen/left-open session can't destroy the account without the owner's say-so.
+    [HttpDelete("me")]
+    public async Task<IActionResult> DeleteMe([FromBody] DeleteAccountRequest req)
+    {
+        var uid = Me;
+        var user = await db.Users.FindAsync(uid);
+        if (user is null) return NotFound();
+
+        if (string.IsNullOrEmpty(req.Password) || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
+            return BadRequest(new { message = "Incorrect password." });
+
+        // Everything else this user owns cascades on delete (sessions, templates,
+        // measurements, macro-profile, PR events, exercise notes, friendships, reset
+        // tokens) — EXCEPT SharedTemplate (Owner/SharedWithUser/Template are all
+        // Restrict, to stop a share from silently vanishing) and SavedTemplate's link
+        // to SharedTemplate (same reason). Those have to be cleared by hand first, or
+        // the cascade throws a foreign-key violation partway through.
+        await using var tx = await db.Database.BeginTransactionAsync();
+
+        var ownTemplateIds = await db.Templates
+            .Where(t => t.UserId == uid)
+            .Select(t => t.Id)
+            .ToListAsync();
+
+        var blockingShareIds = await db.SharedTemplates
+            .Where(s => s.OwnerUserId == uid || s.SharedWithUserId == uid || ownTemplateIds.Contains(s.TemplateId))
+            .Select(s => s.Id)
+            .ToListAsync();
+
+        if (blockingShareIds.Count > 0)
+        {
+            // Anyone's saved copy of a share being removed — not just this user's own.
+            var dependentSaves = await db.SavedTemplates
+                .Where(s => blockingShareIds.Contains(s.SharedTemplateId))
+                .ToListAsync();
+            db.SavedTemplates.RemoveRange(dependentSaves);
+            await db.SaveChangesAsync();
+
+            var shares = await db.SharedTemplates
+                .Where(s => blockingShareIds.Contains(s.Id))
+                .ToListAsync();
+            db.SharedTemplates.RemoveRange(shares);
+            await db.SaveChangesAsync();
+        }
+
+        db.Users.Remove(user);
+        await db.SaveChangesAsync();
+
+        await tx.CommitAsync();
+
+        return Ok(new { message = "Account deleted." });
+    }
+
     private static UserDto ToDto(User u) => new(
         u.Id.ToString(), u.Email, u.Username, u.DisplayName,
         u.AvatarBase64, u.AvatarContentType, u.CurrentStreak, u.BestStreak,
@@ -107,6 +161,8 @@ public class UsersController(AppDbContext db) : ControllerBase
 
 public record UpdateUserRequest(
     string? DisplayName, string? Username);
+
+public record DeleteAccountRequest(string Password);
 
 public record UserDto(
     string Id, string Email, string Username,

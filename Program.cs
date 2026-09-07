@@ -89,14 +89,29 @@ builder.Services.AddAuthorization();
 
 builder.Services.AddRateLimiter(opt =>
 {
-    // forgot-password must never surface rate-limit state to the caller, so on
-    // rejection we still return the same generic 200 the happy path returns.
+    // OnRejected is global across every named policy, so it has to branch on which
+    // policy actually rejected the request — forgot-password must never reveal
+    // rate-limit state (same generic 200 as the happy path), but login is fine
+    // surfacing a plain 429 like any normal rate limit.
     opt.OnRejected = async (context, token) =>
     {
-        context.HttpContext.Response.StatusCode = StatusCodes.Status200OK;
-        context.HttpContext.Response.ContentType = "application/json";
-        await context.HttpContext.Response.WriteAsJsonAsync(
-            new { message = "If that email is registered, we've sent a reset link." }, token);
+        var policyName = context.HttpContext.GetEndpoint()?
+            .Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName;
+
+        if (policyName == "forgot-password")
+        {
+            context.HttpContext.Response.StatusCode = StatusCodes.Status200OK;
+            context.HttpContext.Response.ContentType = "application/json";
+            await context.HttpContext.Response.WriteAsJsonAsync(
+                new { message = "If that email is registered, we've sent a reset link." }, token);
+        }
+        else
+        {
+            context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            context.HttpContext.Response.ContentType = "application/json";
+            await context.HttpContext.Response.WriteAsJsonAsync(
+                new { message = "Too many attempts. Try again later." }, token);
+        }
     };
     opt.AddPolicy("forgot-password", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
@@ -104,6 +119,19 @@ builder.Services.AddRateLimiter(opt =>
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(15),
+                QueueLimit = 0,
+            }));
+    // Login doesn't need anti-enumeration on the rate limit itself — wrong-password
+    // and unknown-identity already return the same generic 401 either way — so a
+    // plain 429 is fine. Looser than forgot-password since legitimate users mistype
+    // passwords far more often than they re-request a reset link.
+    opt.AddPolicy("login", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
                 Window = TimeSpan.FromMinutes(15),
                 QueueLimit = 0,
             }));
