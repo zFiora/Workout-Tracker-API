@@ -14,6 +14,13 @@ public class User
     public int CurrentStreak { get; set; }
     public int BestStreak { get; set; }
     public DateTime? LastWorkoutDate { get; set; }
+    // Precise UTC instant the current streak is anchored to (the latest qualifying
+    // workout of the most recent streak day) — lets reads cheaply tell whether the
+    // persisted CurrentStreak is still alive (< 48h old) without re-querying sessions.
+    public DateTime? LastQualifyingWorkoutAt { get; set; }
+    // IANA id (e.g. "America/Los_Angeles"). Null until the client sends one; streak
+    // day-boundaries fall back to UTC until then — see StreakCalculator.ResolveTimeZone.
+    [MaxLength(64)] public string? TimeZoneId { get; set; }
     public DateTime? PasswordChangedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

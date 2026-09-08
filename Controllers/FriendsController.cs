@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerAPI.Data;
 using WorkoutTrackerAPI.Models;
+using WorkoutTrackerAPI.Services;
 
 namespace WorkoutTrackerAPI.Controllers;
 
@@ -156,16 +157,24 @@ public class FriendsController(AppDbContext db) : ControllerBase
         var users = await db.Users
             .AsNoTracking()
             .Where(u => friendIds.Contains(u.Id))
-            .OrderByDescending(u => u.CurrentStreak)
             .ToListAsync();
 
-        return Ok(users.Select(ToDto));
+        // Sorted by the freshness-aware streak, not the raw column — otherwise a
+        // stale streak (48h+ since the owner's last sync) could still outrank a
+        // smaller but genuinely live one.
+        var now = DateTime.UtcNow;
+        var ranked = users
+            .OrderByDescending(u => StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, now))
+            .Select(ToDto);
+
+        return Ok(ranked);
     }
 
     private static FriendUserDto ToDto(User u) => new(
         u.Id.ToString(), u.Email, u.Username,
         u.DisplayName, u.AvatarBase64, u.AvatarContentType,
-        u.CurrentStreak, u.BestStreak);
+        StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, DateTime.UtcNow),
+        u.BestStreak);
 }
 
 public record FriendRequestBody(string AddresseeId);

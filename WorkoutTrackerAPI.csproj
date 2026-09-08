@@ -14,6 +14,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The test project lives in a subfolder of this one; the SDK's default glob
+         would otherwise also compile its files (and its Xunit references) into
+         this project, causing duplicate-attribute build errors. -->
+    <Compile Remove="WorkoutTrackerAPI.Tests\**" />
+    <Content Remove="WorkoutTrackerAPI.Tests\**" />
+    <EmbeddedResource Remove="WorkoutTrackerAPI.Tests\**" />
+    <None Remove="WorkoutTrackerAPI.Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="BCrypt.Net-Next" Version="4.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />

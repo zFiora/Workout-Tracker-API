@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerAPI.Data;
+using WorkoutTrackerAPI.Services;
 
 namespace WorkoutTrackerAPI.Controllers;
 
@@ -33,13 +34,14 @@ public class SyncController(IDbContextFactory<AppDbContext> dbFactory) : Control
         var sessions = await sessionsTask;
         var user = await userTask;
 
+        var now = DateTime.UtcNow;
         return Ok(new BootstrapDto(
             templates.Select(TemplatesController.ToDto).ToList(),
             sessions.Select(WorkoutSessionsController.ToDto).ToList(),
-            user?.CurrentStreak ?? 0,
+            user is null ? 0 : StreakCalculator.EffectiveCurrentStreak(user.CurrentStreak, user.LastQualifyingWorkoutAt, now),
             user?.BestStreak ?? 0,
             user?.LastWorkoutDate?.ToString("yyyy-MM-dd"),
-            DateTime.UtcNow.ToString("o")));
+            now.ToString("o")));
     }
 
     private async Task<List<Models.Template>> LoadTemplatesAsync(Guid uid)

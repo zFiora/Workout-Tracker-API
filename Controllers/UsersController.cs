@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerAPI.Data;
 using WorkoutTrackerAPI.Models;
+using WorkoutTrackerAPI.Services;
 
 namespace WorkoutTrackerAPI.Controllers;
 
@@ -52,6 +53,19 @@ public class UsersController(AppDbContext db) : ControllerBase
         if (req.DisplayName is not null)     user.DisplayName    = req.DisplayName;
         if (req.Username is not null)        user.Username       = req.Username;
 
+        if (req.TimeZoneId is not null)
+        {
+            try
+            {
+                TimeZoneInfo.FindSystemTimeZoneById(req.TimeZoneId);
+            }
+            catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+            {
+                return BadRequest(new { message = "Invalid time zone." });
+            }
+            user.TimeZoneId = req.TimeZoneId;
+        }
+
         await db.SaveChangesAsync();
         return Ok(ToDto(user));
     }
@@ -64,7 +78,8 @@ public class UsersController(AppDbContext db) : ControllerBase
         if (user is null) return NotFound();
 
         return Ok(new StreakDto(
-            user.CurrentStreak, user.BestStreak,
+            StreakCalculator.EffectiveCurrentStreak(user.CurrentStreak, user.LastQualifyingWorkoutAt, DateTime.UtcNow),
+            user.BestStreak,
             user.LastWorkoutDate?.ToString("yyyy-MM-dd")));
     }
 
@@ -151,16 +166,21 @@ public class UsersController(AppDbContext db) : ControllerBase
 
     private static UserDto ToDto(User u) => new(
         u.Id.ToString(), u.Email, u.Username, u.DisplayName,
-        u.AvatarBase64, u.AvatarContentType, u.CurrentStreak, u.BestStreak,
-        u.LastWorkoutDate?.ToString("yyyy-MM-dd"));
+        u.AvatarBase64, u.AvatarContentType,
+        StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, DateTime.UtcNow),
+        u.BestStreak,
+        u.LastWorkoutDate?.ToString("yyyy-MM-dd"),
+        u.TimeZoneId);
 
     private static PublicUserDto ToPublicDto(User u) => new(
         u.Id.ToString(), u.Username, u.DisplayName,
-        u.AvatarBase64, u.AvatarContentType, u.CurrentStreak, u.BestStreak);
+        u.AvatarBase64, u.AvatarContentType,
+        StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, DateTime.UtcNow),
+        u.BestStreak);
 }
 
 public record UpdateUserRequest(
-    string? DisplayName, string? Username);
+    string? DisplayName, string? Username, string? TimeZoneId = null);
 
 public record DeleteAccountRequest(string Password);
 
@@ -168,7 +188,7 @@ public record UserDto(
     string Id, string Email, string Username,
     string? DisplayName, string? AvatarBase64, string? AvatarContentType,
     int CurrentStreak, int BestStreak,
-    string? LastWorkoutDate);
+    string? LastWorkoutDate, string? TimeZoneId = null);
 
 public record PublicUserDto(
     string Id, string Username,

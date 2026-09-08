@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WorkoutTrackerAPI.Data;
 using WorkoutTrackerAPI.Models;
+using WorkoutTrackerAPI.Services;
 
 namespace WorkoutTrackerAPI.Controllers;
 
@@ -161,49 +162,30 @@ public class WorkoutSessionsController(AppDbContext db) : ControllerBase
         return total;
     }
 
-    // Recomputed from scratch from the distinct set of workout days on every sync —
-    // never incremented per-push — so replaying a batch can never double-count a day.
-    // A day counts once no matter how many sessions land on it; a gap of 2+ days since
-    // the most recent workout day (relative to now) breaks the streak back to 0.
+    // Recomputed from scratch from every qualifying workout on every sync — never
+    // incremented per-push — so replaying a batch can never double-count a day.
+    // Day-grouping and the 48h continuation check both live in StreakCalculator
+    // (see there for the exact rule and why it's a pure, separately-tested function).
     private async Task RecomputeStreakAsync(Guid userId)
     {
         var user = await db.Users.FindAsync(userId);
         if (user is null) return;
 
-        var workoutDates = await db.WorkoutSessions
+        var endedAts = await db.WorkoutSessions
             .Where(s => s.UserId == userId)
-            .Select(s => s.EndedAt.Date)
-            .Distinct()
-            .OrderByDescending(d => d)
+            .Select(s => s.EndedAt)
             .ToListAsync();
 
-        if (workoutDates.Count == 0)
-        {
-            user.CurrentStreak = 0;
-            user.LastWorkoutDate = null;
-            return;
-        }
+        var timeZone = StreakCalculator.ResolveTimeZone(user.TimeZoneId);
+        var result = StreakCalculator.Compute(endedAts, timeZone, DateTime.UtcNow);
 
-        var mostRecent = workoutDates[0];
-        var today = DateTime.UtcNow.Date;
+        user.CurrentStreak = result.CurrentStreak;
+        user.LastQualifyingWorkoutAt = result.LastQualifyingWorkoutAtUtc;
+        user.LastWorkoutDate = result.LastWorkoutLocalDate is { } d
+            ? DateTime.SpecifyKind(d.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc)
+            : null;
 
-        var current = mostRecent < today.AddDays(-1) ? 0 : 1;
-        if (current > 0)
-        {
-            for (var i = 0; i < workoutDates.Count - 1; i++)
-            {
-                if (workoutDates[i].AddDays(-1) == workoutDates[i + 1])
-                    current++;
-                else
-                    break;
-            }
-        }
-
-        user.CurrentStreak = current;
-        user.LastWorkoutDate = mostRecent;
-
-        if (user.CurrentStreak > user.BestStreak)
-            user.BestStreak = user.CurrentStreak;
+        user.BestStreak = StreakCalculator.UpdateBestStreak(user.CurrentStreak, user.BestStreak);
     }
 
     internal static WorkoutSessionDto ToDto(WorkoutSession s) => new(
