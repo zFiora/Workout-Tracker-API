@@ -160,11 +160,12 @@ public class FriendsController(AppDbContext db) : ControllerBase
             .ToListAsync();
 
         // Sorted by the freshness-aware streak, not the raw column — otherwise a
-        // stale streak (48h+ since the owner's last sync) could still outrank a
-        // smaller but genuinely live one.
+        // stale streak (the owner's allowed rest window has already lapsed) could
+        // still outrank a smaller but genuinely live one. Each user's OWN timezone is
+        // used, since "stale" is a local-calendar-day concept for whoever owns it.
         var now = DateTime.UtcNow;
         var ranked = users
-            .OrderByDescending(u => StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, now))
+            .OrderByDescending(u => StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, u.TimeZoneId, now))
             .Select(ToDto);
 
         return Ok(ranked);
@@ -173,7 +174,7 @@ public class FriendsController(AppDbContext db) : ControllerBase
     private static FriendUserDto ToDto(User u) => new(
         u.Id.ToString(), u.Email, u.Username,
         u.DisplayName, u.AvatarBase64, u.AvatarContentType,
-        StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, DateTime.UtcNow),
+        StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, u.TimeZoneId, DateTime.UtcNow),
         u.BestStreak);
 }
 

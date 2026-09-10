@@ -38,7 +38,7 @@ public class SyncController(IDbContextFactory<AppDbContext> dbFactory) : Control
         return Ok(new BootstrapDto(
             templates.Select(TemplatesController.ToDto).ToList(),
             sessions.Select(WorkoutSessionsController.ToDto).ToList(),
-            user is null ? 0 : StreakCalculator.EffectiveCurrentStreak(user.CurrentStreak, user.LastQualifyingWorkoutAt, now),
+            user is null ? 0 : StreakCalculator.EffectiveCurrentStreak(user.CurrentStreak, user.LastQualifyingWorkoutAt, user.TimeZoneId, now),
             user?.BestStreak ?? 0,
             user?.LastWorkoutDate?.ToString("yyyy-MM-dd"),
             now.ToString("o")));

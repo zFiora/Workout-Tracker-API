@@ -78,7 +78,7 @@ public class UsersController(AppDbContext db) : ControllerBase
         if (user is null) return NotFound();
 
         return Ok(new StreakDto(
-            StreakCalculator.EffectiveCurrentStreak(user.CurrentStreak, user.LastQualifyingWorkoutAt, DateTime.UtcNow),
+            StreakCalculator.EffectiveCurrentStreak(user.CurrentStreak, user.LastQualifyingWorkoutAt, user.TimeZoneId, DateTime.UtcNow),
             user.BestStreak,
             user.LastWorkoutDate?.ToString("yyyy-MM-dd")));
     }
@@ -167,7 +167,7 @@ public class UsersController(AppDbContext db) : ControllerBase
     private static UserDto ToDto(User u) => new(
         u.Id.ToString(), u.Email, u.Username, u.DisplayName,
         u.AvatarBase64, u.AvatarContentType,
-        StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, DateTime.UtcNow),
+        StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, u.TimeZoneId, DateTime.UtcNow),
         u.BestStreak,
         u.LastWorkoutDate?.ToString("yyyy-MM-dd"),
         u.TimeZoneId);
@@ -175,7 +175,7 @@ public class UsersController(AppDbContext db) : ControllerBase
     private static PublicUserDto ToPublicDto(User u) => new(
         u.Id.ToString(), u.Username, u.DisplayName,
         u.AvatarBase64, u.AvatarContentType,
-        StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, DateTime.UtcNow),
+        StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, u.TimeZoneId, DateTime.UtcNow),
         u.BestStreak);
 }
 
