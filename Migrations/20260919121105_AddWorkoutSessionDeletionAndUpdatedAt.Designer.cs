@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using WorkoutTrackerAPI.Data;
@@ -13,9 +14,11 @@ using WorkoutTrackerAPI.Data;
 namespace WorkoutTrackerAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260919121105_AddWorkoutSessionDeletionAndUpdatedAt")]
+    partial class AddWorkoutSessionDeletionAndUpdatedAt
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -366,9 +369,6 @@ namespace WorkoutTrackerAPI.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
                     b.Property<DateTime?>("LastQualifyingWorkoutAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -381,11 +381,6 @@ namespace WorkoutTrackerAPI.Migrations
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
-
-                    b.Property<string>("Role")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
 
                     b.Property<string>("TimeZoneId")
                         .HasMaxLength(64)
@@ -400,8 +395,6 @@ namespace WorkoutTrackerAPI.Migrations
 
                     b.HasIndex("Email")
                         .IsUnique();
-
-                    b.HasIndex("Role");
 
                     b.HasIndex("Username")
                         .IsUnique();

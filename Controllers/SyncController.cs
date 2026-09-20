@@ -59,7 +59,7 @@ public class SyncController(IDbContextFactory<AppDbContext> dbFactory) : Control
         await using var ctx = await dbFactory.CreateDbContextAsync();
         return await ctx.WorkoutSessions
             .AsNoTracking()
-            .Where(s => s.UserId == uid && s.EndedAt >= cutoff)
+            .Where(s => s.UserId == uid && s.EndedAt >= cutoff && s.DeletedAt == null)
             .OrderByDescending(s => s.EndedAt)
             .ToListAsync();
     }

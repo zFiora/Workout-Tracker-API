@@ -2,6 +2,8 @@ using System.ComponentModel.DataAnnotations;
 
 namespace WorkoutTrackerAPI.Models;
 
+public enum UserRole { User, Admin }
+
 public class User
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -23,6 +25,9 @@ public class User
     [MaxLength(64)] public string? TimeZoneId { get; set; }
     public DateTime? PasswordChangedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public UserRole Role { get; set; } = UserRole.User;
+    // Reversible admin suspend/reactivate flag — distinct from dashboard "active" (workout recency).
+    public bool IsActive { get; set; } = true;
 
     public ICollection<WorkoutSession> WorkoutSessions { get; set; } = [];
     public ICollection<Template> Templates { get; set; } = [];

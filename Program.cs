@@ -158,9 +158,13 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 // ── CORS ──────────────────────────────────────────────────────────────────────
+// Allow-list only — the mobile app doesn't call through a browser, so this exists
+// purely to gate which web origins (i.e. the admin panel) may call the API.
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? ["http://localhost:5173"];
 builder.Services.AddCors(opt =>
     opt.AddDefaultPolicy(p => p
-        .AllowAnyOrigin()
+        .WithOrigins(allowedOrigins)
         .AllowAnyHeader()
         .AllowAnyMethod()));
 
@@ -179,8 +183,11 @@ var app = builder.Build();
 // Must run before anything that writes the response body.
 app.UseResponseCompression();
 
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
@@ -188,10 +195,19 @@ app.UseAuthorization();
 app.MapControllers();
 
 // ── Auto-migrate on startup ───────────────────────────────────────────────────
-using (var scope = app.Services.CreateScope())
+// Skipped under the "Testing" hosting environment: WebApplicationFactory-based tests
+// swap AppDbContext to the EF InMemory provider, which does not support relational
+// migrations (MigrateAsync would throw) and must seed its own data per-test instead.
+if (!app.Environment.IsEnvironment("Testing"))
 {
+    using var scope = app.Services.CreateScope();
     var ctx = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await ctx.Database.MigrateAsync();
+    await AdminBootstrapper.RunAsync(ctx, builder.Configuration);
 }
 
 app.Run();
+
+// Makes the entry point visible to WebApplicationFactory<Program> in the test
+// project — top-level-statement Program is internal by default otherwise.
+public partial class Program;

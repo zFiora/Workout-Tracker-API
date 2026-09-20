@@ -122,8 +122,13 @@ public class AuthController(AppDbContext db, JwtService jwt, PasswordResetServic
 
     private static UserDto ToDto(User u) => new(
         u.Id.ToString(), u.Email, u.Username, u.DisplayName,
-        u.AvatarBase64, u.AvatarContentType, u.CurrentStreak, u.BestStreak,
-        u.LastWorkoutDate?.ToString("yyyy-MM-dd"));
+        u.AvatarBase64, u.AvatarContentType,
+        StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, u.TimeZoneId, DateTime.UtcNow),
+        u.BestStreak,
+        u.LastWorkoutDate?.ToString("yyyy-MM-dd"),
+        u.TimeZoneId,
+        u.Role.ToString(),
+        u.IsActive);
 }
 
 public record RegisterRequest(

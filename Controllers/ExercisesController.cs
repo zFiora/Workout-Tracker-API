@@ -33,7 +33,7 @@ public class ExercisesController(AppDbContext db) : ControllerBase
 
         var sessions = await db.WorkoutSessions
             .AsNoTracking()
-            .Where(s => allowedUserIds.Contains(s.UserId))
+            .Where(s => allowedUserIds.Contains(s.UserId) && s.DeletedAt == null)
             .ToListAsync();
 
         var bestPerUser = new Dictionary<Guid, (double Weight, int Reps, double OneRepMax, DateTime AchievedAt)>();

@@ -23,6 +23,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasIndex(u => u.Email).IsUnique();
         b.Entity<User>()
             .HasIndex(u => u.Username).IsUnique();
+        b.Entity<User>()
+            .Property(u => u.Role)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+        b.Entity<User>()
+            .HasIndex(u => u.Role);
 
         b.Entity<Template>()
             .Property(t => t.ExerciseIds)
@@ -106,9 +112,19 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .WithMany(u => u.WorkoutSessions)
             .HasForeignKey(s => s.UserId)
             .OnDelete(DeleteBehavior.Cascade);
-        b.Entity<WorkoutSession>()
-            .Property(s => s.LogsJson)
-            .HasColumnType("jsonb");
+        var logsJson = b.Entity<WorkoutSession>().Property(s => s.LogsJson);
+        logsJson.HasColumnType("jsonb");
+        // Npgsql has native JsonDocument support for jsonb columns and needs no
+        // converter. EF Core's InMemory provider (test-only — see
+        // WorkoutTrackerAPI.Tests) has no native support for JsonDocument at all and
+        // fails model validation without one, so give it a plain string round-trip.
+        // Real (Npgsql) behavior is completely unaffected by this branch.
+        if (Database.ProviderName?.Contains("InMemory", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            logsJson.HasConversion(
+                v => v.RootElement.GetRawText(),
+                v => System.Text.Json.JsonDocument.Parse(v, new System.Text.Json.JsonDocumentOptions()));
+        }
         b.Entity<WorkoutSession>()
             .HasIndex(s => new { s.UserId, s.Id })
             .IsUnique();
@@ -116,6 +132,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .HasIndex(s => new { s.UserId, s.TemplateId });
         b.Entity<WorkoutSession>()
             .HasIndex(s => new { s.UserId, s.EndedAt });
+        b.Entity<WorkoutSession>()
+            .HasIndex(s => new { s.UserId, s.UpdatedAt, s.Id });
 
         b.Entity<ExerciseNote>()
             .HasOne(n => n.User)

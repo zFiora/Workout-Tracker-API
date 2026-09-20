@@ -170,7 +170,9 @@ public class UsersController(AppDbContext db) : ControllerBase
         StreakCalculator.EffectiveCurrentStreak(u.CurrentStreak, u.LastQualifyingWorkoutAt, u.TimeZoneId, DateTime.UtcNow),
         u.BestStreak,
         u.LastWorkoutDate?.ToString("yyyy-MM-dd"),
-        u.TimeZoneId);
+        u.TimeZoneId,
+        u.Role.ToString(),
+        u.IsActive);
 
     private static PublicUserDto ToPublicDto(User u) => new(
         u.Id.ToString(), u.Username, u.DisplayName,
@@ -188,7 +190,8 @@ public record UserDto(
     string Id, string Email, string Username,
     string? DisplayName, string? AvatarBase64, string? AvatarContentType,
     int CurrentStreak, int BestStreak,
-    string? LastWorkoutDate, string? TimeZoneId = null);
+    string? LastWorkoutDate, string? TimeZoneId = null,
+    string Role = "User", bool IsActive = true);
 
 public record PublicUserDto(
     string Id, string Username,
