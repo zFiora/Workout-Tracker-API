@@ -16,6 +16,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<WorkoutSession> WorkoutSessions => Set<WorkoutSession>();
     public DbSet<ExerciseNote> ExerciseNotes => Set<ExerciseNote>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<BugReport> BugReports => Set<BugReport>();
+    public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -142,5 +144,31 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .OnDelete(DeleteBehavior.Cascade);
         b.Entity<ExerciseNote>()
             .HasIndex(n => new { n.UserId, n.ExerciseId });
+
+        b.Entity<BugReport>()
+            .Property(r => r.Status)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+        b.Entity<BugReport>()
+            .Property(r => r.Priority)
+            .HasConversion<string>()
+            .HasMaxLength(20);
+        b.Entity<BugReport>()
+            .HasOne(r => r.User)
+            .WithMany()
+            .HasForeignKey(r => r.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        b.Entity<BugReport>()
+            .HasIndex(r => r.Status);
+
+        // No HasOne/WithMany here on purpose — see the comment on AdminAuditLog itself.
+        b.Entity<AdminAuditLog>()
+            .HasIndex(a => a.CreatedAt);
+        b.Entity<AdminAuditLog>()
+            .HasIndex(a => a.AdminUserId);
+        b.Entity<AdminAuditLog>()
+            .HasIndex(a => a.Action);
+        b.Entity<AdminAuditLog>()
+            .HasIndex(a => a.TargetType);
     }
 }

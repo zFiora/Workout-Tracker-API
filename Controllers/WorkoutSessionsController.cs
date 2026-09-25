@@ -231,7 +231,9 @@ public class WorkoutSessionsController(AppDbContext db) : ControllerBase
         return Ok(ranking);
     }
 
-    private static double ComputeTotalVolume(JsonDocument logsJson)
+    // Internal, not private: reused by AdminController for the same volume metric
+    // in the admin workouts list/detail views.
+    internal static double ComputeTotalVolume(JsonDocument logsJson)
     {
         double total = 0;
         foreach (var log in logsJson.RootElement.EnumerateArray())

@@ -114,6 +114,40 @@ public class AdminAuthorizationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Fact]
+    public async Task AdminToken_CanAccessAuditLogs()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", await TokenForAsync(_adminUserId));
+
+        var response = await client.GetAsync("/api/admin/audit-logs");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task NonAdminToken_CannotAccessAuditLogs()
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", await TokenForAsync(_plainUserId));
+
+        var response = await client.GetAsync("/api/admin/audit-logs");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task NoToken_GetsAuditLogs401()
+    {
+        var client = _factory.CreateClient();
+
+        var response = await client.GetAsync("/api/admin/audit-logs");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     private class WorkoutTrackerApiFactory : WebApplicationFactory<Program>
     {
         private readonly string _dbName = Guid.NewGuid().ToString();

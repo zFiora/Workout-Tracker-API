@@ -11,7 +11,8 @@ namespace WorkoutTrackerAPI.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(AppDbContext db, JwtService jwt, PasswordResetService passwordReset) : ControllerBase
+public class AuthController(
+    AppDbContext db, JwtService jwt, PasswordResetService passwordReset, AuditLogService auditLog) : ControllerBase
 {
     private const string ForgotPasswordGenericMessage = "If that email is registered, we've sent a reset link.";
 
@@ -49,6 +50,16 @@ public class AuthController(AppDbContext db, JwtService jwt, PasswordResetServic
 
         if (user is null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
             return Unauthorized(new { message = "Invalid credentials." });
+
+        // Actor identity here comes from `user` — a row just looked up by email/username
+        // and password-verified via BCrypt — never from anything the client asserted
+        // about its own identity beyond those already-checked credentials.
+        if (user.Role == UserRole.Admin)
+        {
+            auditLog.Record(user.Id, user.Username, "admin.login", "User", user.Id.ToString(),
+                $"Admin {user.Username} logged in");
+            await db.SaveChangesAsync();
+        }
 
         return Ok(new AuthResponse(jwt.Generate(user), ToDto(user)));
     }

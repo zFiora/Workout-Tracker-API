@@ -147,6 +147,7 @@ builder.Services.AddResend(o =>
 });
 builder.Services.AddScoped<IEmailService, ResendEmailService>();
 builder.Services.AddScoped<PasswordResetService>();
+builder.Services.AddScoped<AuditLogService>();
 builder.Services.AddControllers()
     .AddJsonOptions(opt =>
     {
